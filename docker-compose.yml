@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ets_db
+      POSTGRES_USER: ets_user
+      POSTGRES_PASSWORD: ets_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ets_user -d ets_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/ets_db
+      - SPRING_DATASOURCE_USERNAME=ets_user
+      - SPRING_DATASOURCE_PASSWORD=ets_password
+      - SPRING_DATA_REDIS_HOST=redis
+      - APP_JWT_SECRET=5a2f8c9d3e1b4a7f6c8d2e4b5a3f1c7d9e2b4a6f8c1d3e5b7a9f2c4d6e8b1a
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
